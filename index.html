@@ -6,7 +6,6 @@
 <title>Formatura José Victor — Confirme presença</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
     --paper:#f6f3ec;
@@ -459,6 +458,23 @@
   }
   .admin-status.error{ color: var(--danger); }
 
+  .admin-gate input[type="password"]{
+    width:100%;
+    padding: 12px 16px;
+    border-radius: 999px;
+    border: 1.5px solid var(--line);
+    background:#fff;
+    font-family:'Space Grotesk', sans-serif;
+    font-size:15px;
+    outline:none;
+    margin-bottom:12px;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .admin-gate input[type="password"]:focus{
+    border-color: var(--teal-deep);
+    box-shadow: 0 0 0 4px rgba(111,199,186,0.25);
+  }
+
   @media (prefers-reduced-motion: reduce){
     *{ animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; }
   }
@@ -584,10 +600,22 @@
 
   <button class="admin-link" onclick="toggleAdminPanel()">Área do organizador</button>
   <div class="admin-panel" id="adminPanel">
-    <h3>Exportar confirmações</h3>
-    <p>Baixe todas as respostas recebidas até agora em uma planilha Excel (.xlsx), com nome, presença e acompanhantes de cada convidado.</p>
-    <button class="btn btn-primary" onclick="exportToExcel()" id="btnExport">Baixar Excel (.xlsx)</button>
-    <div class="admin-status" id="adminStatus"></div>
+
+    <div class="admin-gate" id="adminGate">
+      <h3>Área do organizador</h3>
+      <p>Digite a senha para acessar a exportação das confirmações.</p>
+      <input type="password" id="adminPassword" placeholder="Senha" onkeydown="if(event.key==='Enter') checkAdminPassword()">
+      <button class="btn btn-primary" onclick="checkAdminPassword()">Entrar</button>
+      <div class="admin-status error" id="adminGateStatus"></div>
+    </div>
+
+    <div id="adminContent" style="display:none;">
+      <h3>Exportar confirmações</h3>
+      <p>Baixe todas as respostas recebidas até agora em uma planilha, com nome, presença e acompanhantes de cada convidado.</p>
+      <button class="btn btn-primary" onclick="exportToExcel()" id="btnExport">Baixar planilha (Excel)</button>
+      <div class="admin-status" id="adminStatus"></div>
+    </div>
+
   </div>
 </div>
 
@@ -831,8 +859,38 @@
   }
 
   // ---------- área do organizador ----------
+  const ADMIN_PASSWORD = 'EngMec2026';
+  let adminUnlocked = false;
+
   function toggleAdminPanel(){
-    document.getElementById('adminPanel').classList.toggle('visible');
+    const panel = document.getElementById('adminPanel');
+    panel.classList.toggle('visible');
+    if(panel.classList.contains('visible') && !adminUnlocked){
+      document.getElementById('adminPassword').value = '';
+      document.getElementById('adminGateStatus').textContent = '';
+      document.getElementById('adminPassword').focus();
+    }
+  }
+
+  function checkAdminPassword(){
+    const val = document.getElementById('adminPassword').value;
+    const status = document.getElementById('adminGateStatus');
+    if(val === ADMIN_PASSWORD){
+      adminUnlocked = true;
+      document.getElementById('adminGate').style.display = 'none';
+      document.getElementById('adminContent').style.display = 'block';
+      status.textContent = '';
+    } else {
+      status.textContent = 'Senha incorreta. Tente novamente.';
+    }
+  }
+
+  function csvEscape(value){
+    const str = String(value ?? '');
+    if(/[";\n]/.test(str)){
+      return '"' + str.replace(/"/g, '""') + '"';
+    }
+    return str;
   }
 
   async function exportToExcel(){
@@ -864,8 +922,8 @@
             const rec = JSON.parse(item.value);
             rows.push({
               'Convidado': rec.name || '',
-              'Presença': rec.attending ? 'Sim' : 'Não',
-              'Nº de acompanhantes': rec.attending ? (rec.companionCount || 0) : 0,
+              'Presenca': rec.attending ? 'Sim' : 'Nao',
+              'Numero de acompanhantes': rec.attending ? (rec.companionCount || 0) : 0,
               'Nomes dos acompanhantes': (rec.companionNames && rec.companionNames.length) ? rec.companionNames.join(', ') : '',
               'Enviado em': rec.submittedAt ? new Date(rec.submittedAt).toLocaleString('pt-BR') : ''
             });
@@ -875,19 +933,35 @@
         }
       }
 
+      if(rows.length === 0){
+        status.textContent = 'Ainda não há nenhuma confirmação registrada.';
+        btn.disabled = false;
+        return;
+      }
+
       rows.sort((a,b) => a['Convidado'].localeCompare(b['Convidado'], 'pt-BR'));
 
-      const worksheet = XLSX.utils.json_to_sheet(rows);
-      worksheet['!cols'] = [ {wch:26}, {wch:12}, {wch:20}, {wch:36}, {wch:20} ];
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Confirmações');
-      XLSX.writeFile(workbook, 'confirmacoes_formatura_jose_victor.xlsx');
+      const headers = ['Convidado', 'Presenca', 'Numero de acompanhantes', 'Nomes dos acompanhantes', 'Enviado em'];
+      const lines = [headers.join(';')];
+      rows.forEach(r => lines.push(headers.map(h => csvEscape(r[h])).join(';')));
+      // BOM no início para o Excel reconhecer acentuação em UTF-8 corretamente
+      const csvContent = '\uFEFF' + lines.join('\r\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'confirmacoes_formatura_jose_victor.csv';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
 
       status.textContent = rows.length + ' confirmação(ões) exportada(s) com sucesso!';
     }catch(e){
       console.error('Erro ao exportar:', e);
       status.classList.add('error');
-      status.textContent = 'Não foi possível exportar agora. Tente novamente.';
+      status.textContent = 'Não foi possível exportar agora: ' + (e.message || 'erro desconhecido');
     }
 
     btn.disabled = false;
