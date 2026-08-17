@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Formatura José Victor — Confirme presença</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --paper:#f6f3ec;
+    --paper-2:#efece2;
+    --ink:#1c2340;
+    --navy:#33449e;
+    --navy-deep:#232f72;
+    --teal:#6fc7ba;
+    --teal-deep:#4aa799;
+    --gold:#c9a04a;
+    --danger:#c1594f;
+    --line: rgba(35,47,114,0.18);
+    --shadow: 0 10px 30px rgba(28,35,64,0.10);
+    --radius-lg: 28px;
+    --radius-md: 18px;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:'Space Grotesk', sans-serif;
+    background:
+      radial-gradient(circle at 10% 15%, rgba(111,199,186,0.10), transparent 40%),
+      radial-gradient(circle at 90% 85%, rgba(51,68,158,0.08), transparent 45%),
+      var(--paper);
+    color:var(--ink);
+    min-height:100vh;
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    padding: 28px 14px 60px;
+    position:relative;
+    overflow-x:hidden;
+  }
+
+  /* ---------- decorative scribble borders (echoing the invite) ---------- */
+  .scribble-top, .scribble-bottom{
+    position:fixed;
+    left:0; right:0;
+    height:64px;
+    z-index:0;
+    pointer-events:none;
+    opacity:0.9;
+  }
+  .scribble-top{ top:0; }
+  .scribble-bottom{ bottom:0; transform:scaleY(-1); }
+
+  /* ---------- rotating gear ornaments ---------- */
+  .gear-deco{
+    position:fixed;
+    width:130px; height:130px;
+    opacity:0.10;
+    z-index:0;
+    pointer-events:none;
+  }
+  .gear-deco.tl{ top:70px; left:-30px; animation: spin 40s linear infinite; }
+  .gear-deco.br{ bottom:70px; right:-30px; animation: spin 55s linear infinite reverse; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  /* ---------- card ---------- */
+  .stage{
+    width:100%;
+    max-width:520px;
+    position:relative;
+    z-index:1;
+    margin-top: 30px;
+  }
+
+  .card{
+    background: #fffdf8;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    padding: 34px 28px 30px;
+    position:relative;
+    border: 1px solid var(--line);
+    overflow:hidden;
+  }
+  .card::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    background-image: radial-gradient(rgba(51,68,158,0.035) 1px, transparent 1px);
+    background-size: 14px 14px;
+    pointer-events:none;
+  }
+
+  .eyebrow{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    font-size:12.5px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--teal-deep);
+    font-weight:600;
+    margin-bottom:6px;
+  }
+  .eyebrow svg{ width:14px; height:14px; }
+
+  h1.brand{
+    font-family:'Fredoka', sans-serif;
+    text-align:center;
+    font-size: 40px;
+    line-height:1;
+    color: var(--navy);
+    margin: 2px 0 4px;
+    letter-spacing: 0.01em;
+    -webkit-text-stroke: 0.5px rgba(35,47,114,0.15);
+  }
+  .brand-sub{
+    text-align:center;
+    font-size:14.5px;
+    color:#5a6280;
+    margin: 0 0 22px;
+    line-height:1.5;
+  }
+  .brand-sub b{ color:var(--ink); font-weight:600; }
+
+  /* ---------- progress gears ---------- */
+  .progress{
+    display:flex;
+    justify-content:center;
+    gap:10px;
+    margin-bottom: 26px;
+  }
+  .progress .dot{
+    width:9px; height:9px;
+    border-radius:50%;
+    background: var(--line);
+    transition: all .35s ease;
+  }
+  .progress .dot.active{
+    background: var(--navy);
+    transform: scale(1.25);
+  }
+  .progress .dot.done{
+    background: var(--teal-deep);
+  }
+
+  /* ---------- steps ---------- */
+  .step{ display:none; animation: fadeUp .38s ease; }
+  .step.visible{ display:block; }
+  @keyframes fadeUp{
+    from{ opacity:0; transform: translateY(10px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+
+  label.field-label{
+    display:block;
+    font-weight:600;
+    font-size:16.5px;
+    color:var(--ink);
+    margin-bottom:12px;
+    text-align:center;
+  }
+
+  input[type="text"]{
+    width:100%;
+    padding: 14px 18px;
+    border-radius: 999px;
+    border: 1.5px solid var(--line);
+    background: #fff;
+    font-family:'Space Grotesk', sans-serif;
+    font-size:16px;
+    color:var(--ink);
+    outline:none;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  input[type="text"]:focus{
+    border-color: var(--teal-deep);
+    box-shadow: 0 0 0 4px rgba(111,199,186,0.25);
+  }
+  input[type="text"].error{
+    border-color: var(--danger);
+    box-shadow: 0 0 0 4px rgba(193,89,79,0.15);
+  }
+  .error-msg{
+    color:var(--danger);
+    font-size:12.5px;
+    text-align:center;
+    margin-top:8px;
+    min-height:16px;
+    font-weight:600;
+  }
+
+  /* attendance choice buttons */
+  .choice-group{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  .choice-btn{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding: 16px 18px;
+    border-radius: var(--radius-md);
+    border: 2px solid var(--line);
+    background:#fff;
+    cursor:pointer;
+    font-family:'Space Grotesk', sans-serif;
+    font-size:16px;
+    font-weight:600;
+    color:var(--ink);
+    transition: all .18s ease;
+    text-align:left;
+  }
+  .choice-btn:hover{ border-color: var(--teal); }
+  .choice-btn .ico{ font-size:22px; line-height:1; }
+  .choice-btn.selected.yes{
+    border-color: var(--teal-deep);
+    background: linear-gradient(0deg, rgba(111,199,186,0.14), rgba(111,199,186,0.14)), #fff;
+    box-shadow: 0 0 0 3px rgba(111,199,186,0.25);
+  }
+  .choice-btn.selected.no{
+    border-color: var(--danger);
+    background: linear-gradient(0deg, rgba(193,89,79,0.10), rgba(193,89,79,0.10)), #fff;
+    box-shadow: 0 0 0 3px rgba(193,89,79,0.18);
+  }
+
+  /* companions yes/no toggle */
+  .toggle-row{
+    display:flex;
+    gap:10px;
+    margin-bottom:18px;
+  }
+  .toggle-pill{
+    flex:1;
+    text-align:center;
+    padding:11px 10px;
+    border-radius:999px;
+    border:2px solid var(--line);
+    background:#fff;
+    font-weight:600;
+    font-size:14px;
+    cursor:pointer;
+    transition: all .18s ease;
+  }
+  .toggle-pill.active{
+    border-color: var(--navy);
+    background: var(--navy);
+    color:#fff;
+  }
+
+  .stepper{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:22px;
+    margin: 6px 0 20px;
+  }
+  .stepper button{
+    width:44px; height:44px;
+    border-radius:50%;
+    border:2px solid var(--navy);
+    background:#fff;
+    color:var(--navy);
+    font-size:20px;
+    font-weight:700;
+    cursor:pointer;
+    transition: all .15s ease;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .stepper button:hover{ background:var(--navy); color:#fff; }
+  .stepper button:disabled{ opacity:0.35; cursor:not-allowed; background:#fff; color:var(--navy); }
+  .stepper .count{
+    font-family:'Fredoka', sans-serif;
+    font-size: 34px;
+    color: var(--navy-deep);
+    min-width: 40px;
+    text-align:center;
+  }
+
+  .companion-list{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    margin-bottom: 6px;
+  }
+  .companion-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    animation: fadeUp .3s ease;
+  }
+  .companion-tag{
+    flex-shrink:0;
+    width:34px; height:34px;
+    border-radius:50%;
+    background: var(--teal);
+    color:#fff;
+    font-weight:700;
+    font-size:13px;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Fredoka', sans-serif;
+  }
+
+  /* nav buttons */
+  .nav-row{
+    display:flex;
+    gap:12px;
+    margin-top: 26px;
+  }
+  .btn{
+    flex:1;
+    padding: 14px 18px;
+    border-radius: 999px;
+    border:none;
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:15.5px;
+    cursor:pointer;
+    transition: transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+  }
+  .btn:active{ transform: scale(0.97); }
+  .btn-primary{
+    background: linear-gradient(135deg, var(--navy), var(--navy-deep));
+    color:#fff;
+    box-shadow: 0 8px 18px rgba(51,68,158,0.30);
+  }
+  .btn-primary:disabled{ opacity:0.45; cursor:not-allowed; box-shadow:none; }
+  .btn-ghost{
+    background: transparent;
+    color: var(--ink);
+    border: 1.5px solid var(--line);
+    flex: 0 0 96px;
+  }
+  .btn-ghost:hover{ border-color: var(--navy); }
+
+  /* summary */
+  .summary-card{
+    background: var(--paper-2);
+    border-radius: var(--radius-md);
+    padding: 18px 20px;
+    border: 1px dashed var(--line);
+    margin-bottom: 8px;
+  }
+  .summary-title{
+    font-family:'Fredoka', sans-serif;
+    font-size:18px;
+    color:var(--navy-deep);
+    margin: 0 0 12px;
+    text-align:center;
+  }
+  .summary-row{
+    display:flex;
+    justify-content:space-between;
+    gap:12px;
+    padding:7px 0;
+    border-bottom: 1px solid rgba(28,35,64,0.08);
+    font-size:14.5px;
+  }
+  .summary-row:last-child{ border-bottom:none; }
+  .summary-row .k{ color:#5a6280; font-weight:600; }
+  .summary-row .v{ color:var(--ink); font-weight:600; text-align:right; }
+  .summary-names{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+    align-items:flex-end;
+  }
+
+  /* success */
+  .success-wrap{
+    text-align:center;
+    padding: 6px 4px 4px;
+  }
+  .seal{
+    width:110px; height:110px;
+    margin: 4px auto 18px;
+    animation: sealIn .6s cubic-bezier(.2,1.4,.4,1);
+  }
+  @keyframes sealIn{
+    0%{ transform: scale(0) rotate(-40deg); opacity:0; }
+    70%{ transform: scale(1.1) rotate(6deg); opacity:1; }
+    100%{ transform: scale(1) rotate(0deg); }
+  }
+  .success-title{
+    font-family:'Fredoka', sans-serif;
+    font-size: 24px;
+    color: var(--navy-deep);
+    margin: 0 0 10px;
+  }
+  .success-text{
+    font-size:15px;
+    color:#5a6280;
+    line-height:1.6;
+    margin: 0 0 4px;
+  }
+
+  .required-star{ color:var(--danger); }
+
+  @media (max-width:420px){
+    .card{ padding: 26px 18px 24px; }
+    h1.brand{ font-size:32px; }
+  }
+
+  /* ---------- área do organizador ---------- */
+  .admin-link{
+    display:block;
+    text-align:center;
+    margin: 18px auto 0;
+    font-size:12.5px;
+    color:#8a91ac;
+    text-decoration:underline;
+    cursor:pointer;
+    background:none;
+    border:none;
+    font-family:'Space Grotesk', sans-serif;
+    position:relative;
+    z-index:1;
+  }
+  .admin-link:hover{ color:var(--navy); }
+
+  .admin-panel{
+    display:none;
+    width:100%;
+    max-width:520px;
+    margin: 14px auto 0;
+    background:#fffdf8;
+    border:1px solid var(--line);
+    border-radius: var(--radius-md);
+    padding: 18px 20px;
+    box-shadow: var(--shadow);
+    position:relative;
+    z-index:1;
+  }
+  .admin-panel.visible{ display:block; animation: fadeUp .3s ease; }
+  .admin-panel h3{
+    font-family:'Fredoka', sans-serif;
+    font-size:16px;
+    color:var(--navy-deep);
+    margin:0 0 4px;
+  }
+  .admin-panel p{
+    font-size:13px;
+    color:#5a6280;
+    margin: 0 0 14px;
+    line-height:1.5;
+  }
+  .admin-panel .btn{ width:100%; }
+  .admin-status{
+    font-size:12.5px;
+    color:var(--teal-deep);
+    font-weight:600;
+    margin-top:10px;
+    min-height:16px;
+    text-align:center;
+  }
+  .admin-status.error{ color: var(--danger); }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- decorative scribble top/bottom, echoing the invite's marker-drawn wave -->
+<svg class="scribble-top" viewBox="0 0 1200 64" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M0,40 C60,0 120,60 180,30 C240,0 300,60 360,30 C420,0 480,60 540,30 C600,0 660,60 720,30 C780,0 840,60 900,30 C960,0 1020,60 1080,30 C1120,10 1160,40 1200,20"
+    fill="none" stroke="#33449e" stroke-width="6" stroke-linecap="round" opacity="0.55"/>
+</svg>
+<svg class="scribble-bottom" viewBox="0 0 1200 64" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M0,40 C60,0 120,60 180,30 C240,0 300,60 360,30 C420,0 480,60 540,30 C600,0 660,60 720,30 C780,0 840,60 900,30 C960,0 1020,60 1080,30 C1120,10 1160,40 1200,20"
+    fill="none" stroke="#33449e" stroke-width="6" stroke-linecap="round" opacity="0.55"/>
+</svg>
+
+<!-- decorative gears -->
+<svg class="gear-deco tl" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <path fill="#33449e" d="M50 6 l4 8 9-2 1 9 9 2-3 9 8 5-6 7 6 7-8 5 3 9-9 2-1 9-9-2-4 8-4-8-9 2-1-9-9-2 3-9-8-5 6-7-6-7 8-5-3-9 9-2 1-9 9 2 4-8Z M50 35a15 15 0 1 0 0.1 0Z"/>
+</svg>
+<svg class="gear-deco br" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <path fill="#33449e" d="M50 6 l4 8 9-2 1 9 9 2-3 9 8 5-6 7 6 7-8 5 3 9-9 2-1 9-9-2-4 8-4-8-9 2-1-9-9-2 3-9-8-5 6-7-6-7 8-5-3-9 9-2 1-9 9 2 4-8Z M50 35a15 15 0 1 0 0.1 0Z"/>
+</svg>
+
+<div class="stage">
+  <div class="card">
+
+    <div class="eyebrow">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+      Engenharia Mecânica &middot; Turma 2026
+    </div>
+    <h1 class="brand">Formatura</h1>
+    <p class="brand-sub">José Victor te espera para celebrar!<br><b>19 de setembro, às 14h</b> — Edf. Luar do Campus</p>
+
+    <div class="progress" id="progressDots"></div>
+
+    <!-- STEP 1: nome -->
+    <div class="step" data-step="1">
+      <label class="field-label">Qual é o seu nome? <span class="required-star">*</span></label>
+      <input type="text" id="inputName" placeholder="Digite seu nome completo" autocomplete="name">
+      <div class="error-msg" id="errName"></div>
+      <div class="nav-row">
+        <button class="btn btn-primary" style="flex:1" onclick="goNext(1)">Continuar</button>
+      </div>
+    </div>
+
+    <!-- STEP 2: presença -->
+    <div class="step" data-step="2">
+      <label class="field-label">Você vai comparecer à festa?</label>
+      <div class="choice-group">
+        <button class="choice-btn yes" id="btnYes" onclick="selectAttendance(true)">
+          <span class="ico">✅</span> Sim, estarei presente!
+        </button>
+        <button class="choice-btn no" id="btnNo" onclick="selectAttendance(false)">
+          <span class="ico">❌</span> Não poderei comparecer.
+        </button>
+      </div>
+      <div class="error-msg" id="errAttend"></div>
+      <div class="nav-row">
+        <button class="btn btn-ghost" onclick="goBack(2)">Voltar</button>
+        <button class="btn btn-primary" onclick="goNext(2)">Continuar</button>
+      </div>
+    </div>
+
+    <!-- STEP 3: acompanhantes sim/nao + contador -->
+    <div class="step" data-step="3">
+      <label class="field-label">Você levará acompanhantes?</label>
+      <div class="toggle-row">
+        <div class="toggle-pill" id="pillNoComp" onclick="setBringing(false)">Não levarei acompanhantes</div>
+        <div class="toggle-pill" id="pillYesComp" onclick="setBringing(true)">Sim, vou levar</div>
+      </div>
+      <div id="stepperWrap" style="display:none;">
+        <div class="stepper">
+          <button onclick="changeCount(-1)" id="btnMinus">−</button>
+          <div class="count" id="countDisplay">1</div>
+          <button onclick="changeCount(1)" id="btnPlus">+</button>
+        </div>
+      </div>
+      <div class="nav-row">
+        <button class="btn btn-ghost" onclick="goBack(3)">Voltar</button>
+        <button class="btn btn-primary" id="btnStep3Next" onclick="goNext(3)" disabled>Continuar</button>
+      </div>
+    </div>
+
+    <!-- STEP 4: nomes dos acompanhantes -->
+    <div class="step" data-step="4">
+      <label class="field-label">Qual o nome dos seus acompanhantes?</label>
+      <div class="companion-list" id="companionList"></div>
+      <div class="error-msg" id="errCompanions"></div>
+      <div class="nav-row">
+        <button class="btn btn-ghost" onclick="goBack(4)">Voltar</button>
+        <button class="btn btn-primary" onclick="goNext(4)">Continuar</button>
+      </div>
+    </div>
+
+    <!-- STEP 5: resumo -->
+    <div class="step" data-step="5">
+      <div class="summary-card">
+        <p class="summary-title">Confirme seus dados</p>
+        <div class="summary-row"><span class="k">Convidado</span><span class="v" id="sumName"></span></div>
+        <div class="summary-row"><span class="k">Presença</span><span class="v" id="sumAttend"></span></div>
+        <div class="summary-row" id="sumCompRow"><span class="k">Acompanhantes</span><span class="v" id="sumCompCount"></span></div>
+        <div class="summary-row" id="sumNamesRow"><span class="k">Nomes</span><span class="v summary-names" id="sumNames"></span></div>
+      </div>
+      <div class="error-msg" id="errSubmit"></div>
+      <div class="nav-row">
+        <button class="btn btn-ghost" onclick="goBack(5)">Voltar</button>
+        <button class="btn btn-primary" onclick="submitRSVP()" id="btnConfirm">Confirmar presença</button>
+      </div>
+    </div>
+
+    <!-- STEP 6: sucesso -->
+    <div class="step" data-step="6">
+      <div class="success-wrap">
+        <svg class="seal" viewBox="0 0 100 100" id="sealSvg" xmlns="http://www.w3.org/2000/svg"></svg>
+        <p class="success-title" id="successTitle"></p>
+        <p class="success-text" id="successText"></p>
+      </div>
+    </div>
+
+  </div>
+
+  <button class="admin-link" onclick="toggleAdminPanel()">Área do organizador</button>
+  <div class="admin-panel" id="adminPanel">
+    <h3>Exportar confirmações</h3>
+    <p>Baixe todas as respostas recebidas até agora em uma planilha Excel (.xlsx), com nome, presença e acompanhantes de cada convidado.</p>
+    <button class="btn btn-primary" onclick="exportToExcel()" id="btnExport">Baixar Excel (.xlsx)</button>
+    <div class="admin-status" id="adminStatus"></div>
+  </div>
+</div>
+
+<script>
+  const TOTAL_VISUAL_STEPS = 5; // dots represent steps 1..5 (6 is final result, not counted)
+  let state = {
+    name: "",
+    attending: null,
+    bringingCompanions: null,
+    companionCount: 0,
+    companionNames: []
+  };
+  let currentStep = 1;
+
+  function renderProgress(){
+    const wrap = document.getElementById('progressDots');
+    wrap.innerHTML = '';
+    // dynamic path length: if attending === false, path is 1-2-5 (3 dots); else 1-2-3-4-5
+    const path = state.attending === false ? [1,2,5] : [1,2,3,4,5];
+    path.forEach(s=>{
+      const d = document.createElement('div');
+      d.className = 'dot' + (s === currentStep ? ' active' : (path.indexOf(s) < path.indexOf(currentStep) ? ' done' : ''));
+      wrap.appendChild(d);
+    });
+  }
+
+  function showStep(n){
+    document.querySelectorAll('.step').forEach(el=>{
+      el.classList.toggle('visible', parseInt(el.dataset.step) === n);
+    });
+    currentStep = n;
+    renderProgress();
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+
+  function goNext(from){
+    if(from === 1){
+      const val = document.getElementById('inputName').value.trim();
+      const err = document.getElementById('errName');
+      const input = document.getElementById('inputName');
+      if(!val){
+        err.textContent = 'Por favor, digite seu nome.';
+        input.classList.add('error');
+        return;
+      }
+      err.textContent = '';
+      input.classList.remove('error');
+      state.name = val;
+      showStep(2);
+    } else if(from === 2){
+      if(state.attending === null){
+        document.getElementById('errAttend').textContent = 'Selecione uma opção para continuar.';
+        return;
+      }
+      document.getElementById('errAttend').textContent = '';
+      if(state.attending === false){
+        state.bringingCompanions = null;
+        state.companionCount = 0;
+        state.companionNames = [];
+        fillSummary();
+        showStep(5);
+      } else {
+        showStep(3);
+      }
+    } else if(from === 3){
+      if(state.bringingCompanions === false){
+        state.companionCount = 0;
+        state.companionNames = [];
+        fillSummary();
+        showStep(5);
+      } else {
+        buildCompanionInputs();
+        showStep(4);
+      }
+    } else if(from === 4){
+      const names = [];
+      let hasError = false;
+      for(let i=0;i<state.companionCount;i++){
+        const inp = document.getElementById('companionName_' + i);
+        const v = inp.value.trim();
+        if(!v){ inp.classList.add('error'); hasError = true; }
+        else { inp.classList.remove('error'); }
+        names.push(v);
+      }
+      if(hasError){
+        document.getElementById('errCompanions').textContent = 'Preencha o nome de todos os acompanhantes.';
+        return;
+      }
+      document.getElementById('errCompanions').textContent = '';
+      state.companionNames = names;
+      fillSummary();
+      showStep(5);
+    }
+  }
+
+  function goBack(from){
+    if(from === 2) showStep(1);
+    else if(from === 3) showStep(2);
+    else if(from === 4) showStep(3);
+    else if(from === 5){
+      if(state.attending === false) showStep(2);
+      else if(state.bringingCompanions === false) showStep(3);
+      else showStep(4);
+    }
+  }
+
+  function selectAttendance(val){
+    state.attending = val;
+    document.getElementById('btnYes').classList.toggle('selected', val === true);
+    document.getElementById('btnNo').classList.toggle('selected', val === false);
+    document.getElementById('errAttend').textContent = '';
+  }
+
+  function setBringing(val){
+    state.bringingCompanions = val;
+    document.getElementById('pillYesComp').classList.toggle('active', val === true);
+    document.getElementById('pillNoComp').classList.toggle('active', val === false);
+    const stepperWrap = document.getElementById('stepperWrap');
+    stepperWrap.style.display = val ? 'block' : 'none';
+    if(val && state.companionCount === 0){
+      state.companionCount = 1;
+      document.getElementById('countDisplay').textContent = state.companionCount;
+    }
+    document.getElementById('btnStep3Next').disabled = false;
+    updateStepperButtons();
+  }
+
+  function changeCount(delta){
+    const next = state.companionCount + delta;
+    if(next < 1 || next > 15) return;
+    state.companionCount = next;
+    document.getElementById('countDisplay').textContent = state.companionCount;
+    updateStepperButtons();
+  }
+
+  function updateStepperButtons(){
+    document.getElementById('btnMinus').disabled = state.companionCount <= 1;
+    document.getElementById('btnPlus').disabled = state.companionCount >= 15;
+  }
+
+  function buildCompanionInputs(){
+    const list = document.getElementById('companionList');
+    list.innerHTML = '';
+    const previousNames = state.companionNames || [];
+    for(let i=0;i<state.companionCount;i++){
+      const row = document.createElement('div');
+      row.className = 'companion-row';
+      row.innerHTML = `
+        <div class="companion-tag">${i+1}</div>
+        <input type="text" id="companionName_${i}" placeholder="Nome do acompanhante ${i+1}" value="${previousNames[i] ? previousNames[i].replace(/"/g,'&quot;') : ''}">
+      `;
+      list.appendChild(row);
+    }
+  }
+
+  function fillSummary(){
+    document.getElementById('sumName').textContent = state.name;
+    document.getElementById('sumAttend').textContent = state.attending ? 'Sim, estarei presente!' : 'Não poderei comparecer';
+
+    const compRow = document.getElementById('sumCompRow');
+    const namesRow = document.getElementById('sumNamesRow');
+
+    if(state.attending === false){
+      compRow.style.display = 'none';
+      namesRow.style.display = 'none';
+    } else {
+      compRow.style.display = 'flex';
+      document.getElementById('sumCompCount').textContent = state.companionCount > 0 ? state.companionCount : 'Nenhum';
+      if(state.companionCount > 0){
+        namesRow.style.display = 'flex';
+        const namesWrap = document.getElementById('sumNames');
+        namesWrap.innerHTML = '';
+        state.companionNames.forEach(n=>{
+          const span = document.createElement('span');
+          span.textContent = n;
+          namesWrap.appendChild(span);
+        });
+      } else {
+        namesRow.style.display = 'none';
+      }
+    }
+  }
+
+  function slug(str){
+    return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+  }
+
+  async function submitRSVP(){
+    const btn = document.getElementById('btnConfirm');
+    const errEl = document.getElementById('errSubmit');
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+    errEl.textContent = '';
+
+    const record = {
+      name: state.name,
+      attending: state.attending,
+      companionCount: state.companionCount,
+      companionNames: state.companionNames,
+      submittedAt: new Date().toISOString()
+    };
+
+    try{
+      const key = 'rsvp:' + slug(state.name) + '-' + Date.now();
+      if(window.storage && window.storage.set){
+        await window.storage.set(key, JSON.stringify(record), true);
+      }
+    }catch(e){
+      console.error('Storage error:', e);
+      // Não bloqueia o fluxo do convidado mesmo se o armazenamento falhar
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Confirmar presença';
+    renderSuccess();
+    showStep(6);
+  }
+
+  function renderSuccess(){
+    const seal = document.getElementById('sealSvg');
+    const title = document.getElementById('successTitle');
+    const text = document.getElementById('successText');
+
+    if(state.attending){
+      seal.innerHTML = `
+        <circle cx="50" cy="50" r="46" fill="#fffdf8" stroke="#33449e" stroke-width="3"/>
+        <circle cx="50" cy="50" r="38" fill="none" stroke="#6fc7ba" stroke-width="2" stroke-dasharray="4 3"/>
+        <text x="50" y="45" text-anchor="middle" font-size="26">🎓</text>
+        <text x="50" y="68" text-anchor="middle" font-size="10" fill="#33449e" font-family="Fredoka, sans-serif" font-weight="700">CONFIRMADO</text>
+      `;
+      title.textContent = 'Presença confirmada!';
+      text.innerHTML = 'Presença confirmada! 🎓⚙️<br>Estamos ansiosos para celebrar esse momento com você!';
+    } else {
+      seal.innerHTML = `
+        <circle cx="50" cy="50" r="46" fill="#fffdf8" stroke="#c1594f" stroke-width="3"/>
+        <text x="50" y="60" text-anchor="middle" font-size="30">💙</text>
+      `;
+      title.textContent = 'Sentiremos sua falta';
+      text.textContent = 'Que pena! Sentiremos sua falta. Obrigado por nos avisar! 💙';
+    }
+  }
+
+  // ---------- área do organizador ----------
+  function toggleAdminPanel(){
+    document.getElementById('adminPanel').classList.toggle('visible');
+  }
+
+  async function exportToExcel(){
+    const btn = document.getElementById('btnExport');
+    const status = document.getElementById('adminStatus');
+    btn.disabled = true;
+    status.classList.remove('error');
+    status.textContent = 'Buscando confirmações...';
+
+    try{
+      if(!window.storage || !window.storage.list){
+        throw new Error('Armazenamento indisponível neste ambiente.');
+      }
+
+      const listResult = await window.storage.list('rsvp:', true);
+      const keys = (listResult && listResult.keys) ? listResult.keys : [];
+
+      if(keys.length === 0){
+        status.textContent = 'Ainda não há nenhuma confirmação registrada.';
+        btn.disabled = false;
+        return;
+      }
+
+      const rows = [];
+      for(const key of keys){
+        try{
+          const item = await window.storage.get(key, true);
+          if(item && item.value){
+            const rec = JSON.parse(item.value);
+            rows.push({
+              'Convidado': rec.name || '',
+              'Presença': rec.attending ? 'Sim' : 'Não',
+              'Nº de acompanhantes': rec.attending ? (rec.companionCount || 0) : 0,
+              'Nomes dos acompanhantes': (rec.companionNames && rec.companionNames.length) ? rec.companionNames.join(', ') : '',
+              'Enviado em': rec.submittedAt ? new Date(rec.submittedAt).toLocaleString('pt-BR') : ''
+            });
+          }
+        }catch(innerErr){
+          console.error('Erro ao ler ' + key, innerErr);
+        }
+      }
+
+      rows.sort((a,b) => a['Convidado'].localeCompare(b['Convidado'], 'pt-BR'));
+
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      worksheet['!cols'] = [ {wch:26}, {wch:12}, {wch:20}, {wch:36}, {wch:20} ];
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Confirmações');
+      XLSX.writeFile(workbook, 'confirmacoes_formatura_jose_victor.xlsx');
+
+      status.textContent = rows.length + ' confirmação(ões) exportada(s) com sucesso!';
+    }catch(e){
+      console.error('Erro ao exportar:', e);
+      status.classList.add('error');
+      status.textContent = 'Não foi possível exportar agora. Tente novamente.';
+    }
+
+    btn.disabled = false;
+  }
+
+  // init
+  showStep(1);
+</script>
+
+</body>
+</html>
